@@ -11,6 +11,11 @@ const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY;
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY;
 const RESET_TOKEN_EXPIRY = process.env.RESET_TOKEN_EXPIRY;
 
+console.log(JWT_SECRET)
+console.log(REFRESH_SECRET)
+console.log(ACCESS_TOKEN_EXPIRY)
+console.log(RESET_SECRET)
+
 function generateAccessToken(user) {
     return jwt.sign(
         {
@@ -84,7 +89,7 @@ async function signin(req,res) {
         await Session.create({
             userId:user.id,
             token:refreshToken,
-            deletedAt:expiresAt
+            expireAt:expiresAt
         })
 
         logger.info(`User ${user.id} signed in`);
@@ -118,7 +123,13 @@ async function signup(req,res){
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const {user,accessToken,refreshToken} = await sequelize.transaction(async(t)=>{
-            const user = await User.create({ username:name, email : email, password : hashedPassword },{transaction:t});
+            const user=0;
+            try{
+                user = await User.create({ username:name, email : email, password : hashedPassword },{transaction:t});
+            }catch(error){
+                logger.error("email is already exist",error.message)
+                return res.status(409).json("Email is already exist")
+            }
             
     
             const newUser = {
@@ -132,7 +143,7 @@ async function signup(req,res){
             const expiresAt = new Date();
             expiresAt.setHours(expiresAt.getHours() + 1);
     
-            await Session.create({userId:user.id,token:refreshToken,deletedAt:expiresAt },{transaction:t})
+            await Session.create({userId:user.id,token:refreshToken,expireAt:expiresAt },{transaction:t})
             return {user,accessToken, refreshToken};
         })
         const { password:_password, ...safeUser } = user.toJSON();
@@ -171,8 +182,10 @@ async function refreshToken(req,res) {
         if (!refreshToken) {
             return res.status(400).json({
                 message: "Refresh token is required"
-            });
+            }); 
         }
+
+        console.log(refreshToken);
 
         const decoded = jwt.verify(refreshToken, REFRESH_SECRET);
 
@@ -202,6 +215,7 @@ async function refreshToken(req,res) {
         });
 
     } catch (error) {
+        logger.error(error.stack || error.message);
         return res.status(403).json({
             message: "Invalid or expired refresh token"
         });

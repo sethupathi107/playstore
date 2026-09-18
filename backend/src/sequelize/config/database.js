@@ -7,6 +7,7 @@ import defineApplication from "../models/App.js";
 import defineInstalled from "../models/Installed.js";
 import defineSession from "../models/Session.js";
 import defineImage from "../models/Image.js";
+import defineLogs from '../models/log.js';
 import logger from '../../utils/logger.js';
 
 if (!process.env.DATABASE_URL) {
@@ -20,13 +21,14 @@ const sequelize = new Sequelize({
 });
 
 const User = defineUser(sequelize);
+const Logs = defineLogs(sequelize);
 const Category = defineCategory(sequelize);
 const Application = defineApplication(sequelize, { User, Category });
 const Installed = defineInstalled(sequelize, { User, Application });
 const Session = defineSession(sequelize, { User });
 const Image = defineImage(sequelize, { Application });
 
-const models = { User, Category, Application, Installed, Session, Image };
+const models = { User, Category, Application, Installed, Session, Image , Logs };
 
 Object.values(models).forEach((model) => {
   if (model.associate) model.associate(models);
@@ -40,4 +42,4 @@ try {
 }
 
 export default sequelize;
-export { User, Category, Application, Installed, Session, Image };
+export { User, Category, Application, Installed, Session, Image, Logs };

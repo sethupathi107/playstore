@@ -79,17 +79,11 @@ class Application extends Model {
         allowNull: false,
         validate: { notEmpty: true, len: [2, 50] },
       },
-      installCount: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0,
-      },
     },
     {
       sequelize,
       modelName: 'Application',
       timestamps: true,
-      paranoid: true,
     }
   );
 

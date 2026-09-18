@@ -51,7 +51,6 @@ export default function defineInstalled(sequelize, { User, Application }) {
       sequelize,
       modelName: 'Installed',
       timestamps: true,
-      paranoid: true,
     }
   );
 

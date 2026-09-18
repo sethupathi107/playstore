@@ -33,12 +33,15 @@ export default function defineSession(sequelize, { User }) {
         unique: true,
         validate: { notEmpty: true },
       },
+      expireAt:{
+        type: DataTypes.DATE,
+        allowNull:true,
+      }
     }, 
     {
       sequelize,
       modelName: 'Session',
       timestamps: true,
-      paranoid: true,
     }
   );
 

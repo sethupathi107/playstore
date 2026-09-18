@@ -56,7 +56,6 @@ class User extends Model {
     {
       sequelize,
       modelName: 'User',
-      paranoid: true,
       timestamps: true,
     }
   );

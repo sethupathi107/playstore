@@ -1,34 +1,100 @@
 import { logger } from "../utils/logger.js";
-import { Application } from "../sequelize/config/database.js";
+import sequelize,{ Application } from "../sequelize/config/database.js";
 import path from "node:path";
 import fs from "fs/promises";
 import { fileURLToPath } from "node:url";
+import client from "../utils/redisClient.js";
+const EXP = process.env.EXP;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(__dirname, "../../uploads");
 
 
 async function getAllApps(req, res) {
-    try {
-        const app = await Application.findAll()
-        res.json(app);
-    } catch (error) {
+    // try {
+    //     const app = await Application.findAll()
+    //     res.json(app);
+    // } catch (error) {
+    //     logger.error(error.stack || error.message);
+    //     res.status(500).json({ message: "Internal server error" });
+    // }
+
+    const cacheKey="app:all";
+
+    try{
+        const cached=await client.get(cacheKey)
+        if(cached){
+            return res.json(JSON.parse(cached));
+        }
+    } catch(error){
+        logger.error("Redis GET failed, falling back to DB: ",error.message)
+    }
+
+    try{
+        const apps = await Application.findAll();
+        if (apps.length==0) {
+            return res.status(404).json({ message: "App not found" });
+        }
+        try{
+            await client.set(cacheKey,JSON.stringify(apps),{EX:60});
+        } catch (error){
+            logger.error("Redis SET failed: ",error.message);
+        }
+        res.json(apps)
+    }catch(error){
         logger.error(error.stack || error.message);
         res.status(500).json({ message: "Internal server error" });
     }
+
 }
 
 async function getAppById(req, res) {
-    try {
+    // try {
 
-        const {applicationid} = req.body;
-        const app = await Application.findByPk(applicationid);
+    //     const {applicationid} = req.body;
+    //     const app = await Application.findByPk(applicationid);
+
+    //     if (!app) {
+    //         return res.status(404).json({ message: "App not found" });
+    //     }
+    //     res.json(app);
+    // } catch (error) {
+    //     logger.error(error.stack || error.message);
+    //     res.status(500).json({ message: "Internal server error" });
+    // }
+
+
+    const {applicationId} = req.body;
+
+    if(!applicationId){
+        return res.status(400).json({message :"applicationId is required"})
+    }
+
+    const cacheKey="appid:"+applicationId;
+    try{
+        const cached=await client.get(cacheKey)
+        if(cached){
+            return res.json(JSON.parse(cached));
+        }
+    } catch(error){
+        logger.error("Redis GET failed, falling back to DB: ",error.message)
+    }
+
+    try{
+        const app = await Application.findByPk(applicationId);
 
         if (!app) {
             return res.status(404).json({ message: "App not found" });
         }
-        res.json(app);
-    } catch (error) {
+
+        try{
+            await client.set(cacheKey,JSON.stringify(app),{EX:EXP});
+        } catch (error){
+            logger.error("Redis SET failed: ",error.message);
+        }
+
+        res.json(app)
+    }catch(error){
         logger.error(error.stack || error.message);
         res.status(500).json({ message: "Internal server error" });
     }
@@ -55,6 +121,12 @@ async function createApp(req, res) {
             userId,
             applicationURL
         })
+
+        try{
+            await client.del("app:all");
+        }catch(error){
+            logger.error("Redis DEL failed: ", error.message);
+        }
 
         logger.info(`User ${req.user.id} created app ${app.id} (${app.name})`);
         res.status(201).json(app);
@@ -93,9 +165,15 @@ async function updateApp(req, res) {
             });
         }
 
+        try{
+            await client.del(["app:all","appid:"+id]);
+        }catch(error){
+            logger.error("Redis DEL failed: ", error.message);
+        }
+
         logger.info(`User ${req.user.id} updated app ${app.id} (${app.name})`);
 
-        res.json(app);
+        res.status(200).json(app);
     } catch (error) {
         logger.error(error.stack || error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -104,7 +182,7 @@ async function updateApp(req, res) {
 
 async function deleteApp(req, res) {
     try {
-         const { applicationId,userId} = req.body;
+         const { applicationId} = req.body;
 
         if (!applicationId) {
             return res.status(400).json({ message: "App applicationId is required" });
@@ -116,16 +194,24 @@ async function deleteApp(req, res) {
             return res.status(404).json({ message: "App not found" });
         }
 
-        await app.destroy({transaction:t});
+        await sequelize.transaction(async (t) => {
+            await app.destroy({ transaction: t });
+        });
 
         fs.unlink(path.join(UPLOAD_DIR, app.applicationURL)).catch((err) => {
             logger.error(`Failed to remove old app file ${app.applicationURL}: ${err.message}`);
         });
 
+        try{
+            await client.del(["app:all","appid:"+applicationId])
+        } catch(error){
+            logger.error("Redis DEL failed: ",error.message);
+        }
 
         logger.info(`User ${req.user.id} deleted app ${app.id} (${app.applicationURL})`);
 
-        res.json({ message: "App deleted", app: app });
+
+        res.status(200).json({ message: "App deleted", app: app });
     } catch (error) {
         logger.error(error.stack || error.message);
         res.status(500).json({ message: "Internal server error" });
@@ -155,7 +241,7 @@ async function downloadApp(req,res){
         })
     } catch (error){
         logger.error(error.stack || error.message);
-        res.status(500).json({messafe:"Internal server error"});
+        res.status(500).json({message:"Internal server error"});
     }
 }
 

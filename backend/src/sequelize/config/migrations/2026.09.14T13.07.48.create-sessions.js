@@ -25,11 +25,13 @@ export const up = async params => {
         },
         updatedAt: {
             type: DataTypes.DATE,
-            allowNull: false,
         },
         deletedAt: {
             type: DataTypes.DATE,
-            allowNull: false,
+        },
+        expireAt: {
+            type: DataTypes.DATE,
+            allowNull: true,
         },
     })
 };

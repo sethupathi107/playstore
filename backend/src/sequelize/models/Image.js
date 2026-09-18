@@ -42,7 +42,6 @@ export default function defineImage(sequelize, { Application }) {
       sequelize,
       modelName: 'Image',
       timestamps: true,
-      paranoid: true,
     }
   );
 

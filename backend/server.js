@@ -6,7 +6,11 @@ import category from "./src/routes/category.js";
 import admin from "./src/routes/admin.js";
 import auth from "./src/middlewares/auth.js"
 import requireAdmin from "./src/middlewares/requireAdmin.js"
+import DbTransport from "./src/utils/dbTransport.js";
+import { Logs } from "./src/sequelize/config/database.js";
+import { logger } from "./src/utils/logger.js";
 
+logger.add(new DbTransport({ level: "info" }, Logs));
 
 const app = express(); 
 app.use(express.json())

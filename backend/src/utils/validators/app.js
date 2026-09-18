@@ -16,7 +16,7 @@ const createAppValidator = [
 ];
 
 const downloadAppValidator =[
-    body("id")
+    body("applicationId")
         .notEmpty().withMessage("App id is required")
         .isUUID().withMessage("App must be a valid UUID"),
 ]
@@ -40,7 +40,7 @@ const updateAppValidator = [
 ];
 
 const appIdBodyValidator = [
-    body("id")
+    body("applicationId")
         .notEmpty().withMessage("App id is required")
         .isUUID().withMessage("App must be a valid UUID"),
 ];
